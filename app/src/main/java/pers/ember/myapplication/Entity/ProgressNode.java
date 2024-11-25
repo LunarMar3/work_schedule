@@ -14,7 +14,17 @@ public class ProgressNode {
 
     private double y;
 
-
+    public ProgressNode(String id, String name, String description, String icon, List<String> next, String before, boolean finished, double x, double y) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.icon = icon;
+        this.next = next;
+        this.before = before;
+        this.finished = finished;
+        this.x = x;
+        this.y = y;
+    }
     public String getId() {
         return id;
     }

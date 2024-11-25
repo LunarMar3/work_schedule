@@ -25,8 +25,6 @@ public class login_activity extends AppCompatActivity {
     private TextView forgetPassword;
     private Button loginButton;
     private Button registerButton;
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -123,7 +121,6 @@ public class login_activity extends AppCompatActivity {
                             }
                         });
                     }
-
                 } catch (Exception e) {
                     e.printStackTrace();
                     runOnUiThread(new Runnable() {
