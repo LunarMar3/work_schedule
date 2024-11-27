@@ -80,7 +80,7 @@ public class update_activity extends AppCompatActivity {
     private void sendVerificationCode(String email) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://8.134.189.141:999/user/sms");
+                URL url = new URL("http://8.134.189.141:999/api/user/sms");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -134,7 +134,7 @@ public class update_activity extends AppCompatActivity {
     private void updatePassword(String password, String email, String code) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://8.134.189.141:999/user/update");
+                URL url = new URL("http://8.134.189.141:999/api/user/update");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json; utf-8");

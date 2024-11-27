@@ -1,24 +1,61 @@
 package pers.ember.myapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
+import android.widget.Toast;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.gson.Gson;
 
+import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
+import pers.ember.myapplication.Entity.ProgressNodeList;
 import pers.ember.myapplication.View.ProgressGraphView;
 import pers.ember.myapplication.Entity.ProgressNode;
 
 public class progress_activity extends AppCompatActivity {
 
+    private BottomNavigationView bottomNavigationView;
+    private Spinner spinner;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_progress);
+        spinner = findViewById(R.id.spinner_progress_files);
         ProgressGraphView progressGraphView = findViewById(R.id.progressGraphView);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.navigation_progress) {
+                return true;
+            }
+            if (id == R.id.navigation_create) {
+                Intent intent = new Intent(progress_activity.this,design_activity.class);
+                startActivity(intent);
+                finish();
+                return true;
+            }
+            return false;
+        });
         String jsonData = "[\n" +
                 "  {\n" +
                 "    \"id\": \"1\",\n" +
@@ -94,38 +131,101 @@ public class progress_activity extends AppCompatActivity {
                 "    \"icon\": \"icon6.png\"\n" +
                 "  }\n" +
                 "] ";
-//        String jsonData = "[\n" +
-//                "  {\n" +
-//                "    \"id\": \"1\",\n" +
-//                "    \"name\": \"学习基础语法\",\n" +
-//                "    \"description\": \"学习 Java 的基本语法\",\n" +
-//                "    \"icon\": \"icon1.png\",\n" +
-//                "    \"next\": [\"2\", \"3\"]\n" +
-//                "  },\n" +
-//                "  {\n" +
-//                "    \"id\": \"2\",\n" +
-//                "    \"name\": \"实践项目\",\n" +
-//                "    \"description\": \"完成一个简单的 Java 项目\",\n" +
-//                "    \"icon\": \"icon2.png\",\n" +
-//                "    \"next\": [\"4\"]\n" +
-//                "  },\n" +
-//                "  {\n" +
-//                "    \"id\": \"3\",\n" +
-//                "    \"name\": \"了解面向对象\",\n" +
-//                "    \"description\": \"学习面向对象编程的基本概念\",\n" +
-//                "    \"icon\": \"icon3.png\",\n" +
-//                "    \"next\": [\"4\"]\n" +
-//                "  },\n" +
-//                "  {\n" +
-//                "    \"id\": \"4\",\n" +
-//                "    \"name\": \"完成学习\",\n" +
-//                "    \"description\": \"巩固知识，完成阶段性学习\",\n" +
-//                "    \"icon\": \"icon4.png\"\n" +
-//                "  }\n" +
-//                "] ";
         Gson gson = new Gson();
         List<ProgressNode> nodes = Arrays.asList(gson.fromJson(jsonData, ProgressNode[].class));
         progressGraphView.setNodes(nodes);
+        GetProgress();
 
+    }
+    private void GetProgress() {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://8.134.189.141:999/api/progress/get");
+                String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                        .getString("auth_token", null);
+                if (token == null) {
+                    runOnUiThread(() -> Toast.makeText(progress_activity.this, "请重新登录", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Authorization", token);
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (Scanner scanner = new Scanner(connection.getInputStream())) {
+                        scanner.useDelimiter("\\A");
+                        String response = scanner.hasNext() ? scanner.next() : "";
+                        JSONObject jsonResponse = new JSONObject(response);
+                        int code = jsonResponse.getInt("code");
+                        final String data = jsonResponse.getString("data");
+                        runOnUiThread(() -> {
+                            if (code == 200) {
+                                Gson gson = new Gson();
+                                List<ProgressNodeList> progressList = parseProgressData(data);
+                                setupSpinner(progressList);
+                            }
+                        });
+
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(progress_activity.this, "网络错误，请稍后重试", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void setupSpinner(List<ProgressNodeList> progressList) {
+        // 创建显示在 Spinner 上的名称列表
+        List<String> progressNames = new ArrayList<>();
+        for (int i = 0; i < progressList.size(); i++) {
+            progressNames.add("进度文件 " + (i + 1));
+        }
+
+        // 设置 Spinner 的适配器
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                progressNames
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                ProgressNodeList selectedProgressList = progressList.get(position);
+
+                runOnUiThread(() -> {
+                    ProgressGraphView progressGraphView = findViewById(R.id.progressGraphView);
+                    progressGraphView.setNodes(selectedProgressList.getProgressNodes());
+                });
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+    private List<ProgressNodeList> parseProgressData(String data) {
+        List<ProgressNodeList> progressLists = new ArrayList<>();
+        try {
+            JSONArray jsonArray = JSONUtil.parseArray(data);
+            for (Object item : jsonArray) {
+                String jsonString = (String) item;
+                List<ProgressNode> progressNodes = Arrays.asList(
+                        new Gson().fromJson(jsonString, ProgressNode[].class)
+                );
+                progressLists.add(new ProgressNodeList(progressNodes));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            runOnUiThread(() -> Toast.makeText(this, "解析进度数据出错", Toast.LENGTH_SHORT).show());
+        }
+        return progressLists;
     }
 }

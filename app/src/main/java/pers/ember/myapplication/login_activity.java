@@ -77,7 +77,7 @@ public class login_activity extends AppCompatActivity {
                         });
                         return;
                     }
-                    URL url = new URL("http://8.134.189.141:999/user/login");
+                    URL url = new URL("http://8.134.189.141:999/api/user/login");
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("POST");
                     connection.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -109,7 +109,15 @@ public class login_activity extends AppCompatActivity {
                                 @Override
                                 public void run() {
                                     Toast.makeText(login_activity.this, message, Toast.LENGTH_SHORT).show();
-                                    // 此处可以进一步处理JWT，例如保存到SharedPreferences
+                                    if (code == 200) {
+                                        getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                                                .edit()
+                                                .putString("auth_token", data)
+                                                .apply();
+                                        Intent intent = new Intent(login_activity.this,progress_activity.class);
+                                        startActivity(intent);
+                                        finish();
+                                    }
                                 }
                             });
                         }

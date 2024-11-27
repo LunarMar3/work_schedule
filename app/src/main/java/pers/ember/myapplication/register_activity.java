@@ -98,7 +98,7 @@ public class register_activity extends AppCompatActivity {
     private void sendVerificationCode(String email) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://8.134.189.141:999/user/sms"); // 修改为你的验证码发送接口地址
+                URL url = new URL("http://8.134.189.141:999/api/user/sms"); // 修改为你的验证码发送接口地址
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -134,7 +134,7 @@ public class register_activity extends AppCompatActivity {
     private void register(String username, String password, String email, String code) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://8.134.189.141:999/user/register");
+                URL url = new URL("http://8.134.189.141:999/api/user/register");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json; utf-8");

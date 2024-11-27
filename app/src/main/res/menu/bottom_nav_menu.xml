@@ -2,12 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/navigation_home"
+        android:id="@+id/navigation_progress"
         android:icon="@drawable/icon6"
         android:title="首页" />
 
     <item
-        android:id="@+id/navigation_discover"
+        android:id="@+id/navigation_create"
         android:icon="@drawable/icon6"
         android:title="发现" />
 

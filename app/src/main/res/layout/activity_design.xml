@@ -64,9 +64,9 @@
         <ScrollView
             android:id="@+id/node_form"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="250dp"
             android:descendantFocusability="beforeDescendants"
+            android:fitsSystemWindows="true"
             android:layout_marginBottom="30dp">
 
             <LinearLayout
@@ -131,10 +131,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="位置"
+                    android:text="位置坐标"
                     android:textSize="16sp" />
 
                 <LinearLayout
+
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
@@ -226,8 +227,6 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:background="?android:attr/windowBackground"
-            app:itemIconTint="@color/selector_nav_item"
-            app:itemTextColor="@color/selector_nav_item"
             app:menu="@menu/bottom_nav_menu" />
     </FrameLayout>
 

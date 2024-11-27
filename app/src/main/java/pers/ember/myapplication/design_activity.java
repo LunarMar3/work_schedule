@@ -2,6 +2,7 @@ package pers.ember.myapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -15,10 +16,20 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import cn.hutool.json.JSONUtil;
 import pers.ember.myapplication.Entity.ProgressNode;
 import pers.ember.myapplication.View.ProgressGraphView;
 
@@ -33,6 +44,8 @@ public class design_activity extends AppCompatActivity {
     private ScrollView scrollView;
     private ArrayAdapter<String> nodeAdapter,beforeAdapter;
 
+    private BottomNavigationView bottomNavigationView;
+
     private Button decreaseXButton, increaseXButton, decreaseYButton, increaseYButton;
     private static final int STEP_SIZE = 100;
     @Override
@@ -43,7 +56,19 @@ public class design_activity extends AppCompatActivity {
         inputNodeId = findViewById(R.id.input_node_id);
         inputNodeName = findViewById(R.id.input_node_name);
         inputNodeDescription = findViewById(R.id.input_node_description);
-
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.navigation_progress) {
+                Intent intent = new Intent(design_activity.this,progress_activity.class);
+                startActivity(intent);
+                finish();
+            }
+            if (id == R.id.navigation_create) {
+                return true;
+            }
+            return false;
+        });
         decreaseXButton = findViewById(R.id.decrease_x_button);
         increaseXButton = findViewById(R.id.increase_x_button);
         decreaseYButton = findViewById(R.id.decrease_y_button);
@@ -58,7 +83,9 @@ public class design_activity extends AppCompatActivity {
         scrollView = findViewById(R.id.node_form);
         progressGraphView.setOnTouchListener((v, event) -> true);
         saveNodeButton.setOnClickListener(v -> saveNode());
-        saveProgressButton.setOnClickListener(v -> saveProgress());
+        saveProgressButton.setOnClickListener(v -> {
+            saveProgress();
+        });
         nodeAdapter = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_item, getNodeNames(nodeList)
         );
@@ -95,8 +122,6 @@ public class design_activity extends AppCompatActivity {
                 }
             }
         });
-
-
 
     }
     private void saveNode() {
@@ -144,8 +169,56 @@ public class design_activity extends AppCompatActivity {
         Toast.makeText(this, "节点已添加！", Toast.LENGTH_SHORT).show();
     }
     private void saveProgress() {
-        // 保存整个进度的逻辑，可以是写入文件或上传到服务器
-        Toast.makeText(this, "进度已保存！", Toast.LENGTH_SHORT).show();
+        // 开启一个新线程处理网络请求
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://8.134.189.141:999/api/progress/insert");
+                String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                        .getString("auth_token", null);
+
+                // 检查 token 是否为空
+                if (token == null) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "请重新登录", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Authorization", token);
+                connection.setDoOutput(true);
+
+                // 准备请求数据
+                String progress = JSONUtil.toJsonStr(nodeList);
+                JSONObject jsonInput = new JSONObject();
+                jsonInput.put("progress", progress);
+                String jsonString = jsonInput.toString();
+
+                // 写入请求数据
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = jsonString.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = connection.getResponseCode();
+
+                // 根据响应结果更新 UI
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "进度已保存！", Toast.LENGTH_SHORT).show());
+                } else {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "保存失败！", Toast.LENGTH_SHORT).show());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "网络错误，请稍后再试", Toast.LENGTH_SHORT).show());
+            }
+        }).start(); // 启动线程
     }
 
     private void refreshGraph() {
@@ -170,6 +243,9 @@ public class design_activity extends AppCompatActivity {
         nodeAdapter.clear();
         nodeAdapter.addAll(getNodeNames(nodeList));
         nodeAdapter.notifyDataSetChanged();
+        beforeAdapter.clear();
+        beforeAdapter.addAll(getBeforeNodeOptions(nodeList));
+        beforeAdapter.notifyDataSetChanged();
     }
     private void adjustCoordinate(EditText coordinateInput, int step) {
         String currentText = coordinateInput.getText().toString();
