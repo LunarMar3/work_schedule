@@ -4,16 +4,12 @@
     <item
         android:id="@+id/navigation_progress"
         android:icon="@drawable/icon6"
-        android:title="首页" />
+        android:title="进度" />
 
     <item
         android:id="@+id/navigation_create"
         android:icon="@drawable/icon6"
-        android:title="发现" />
+        android:title="创造" />
 
-    <item
-        android:id="@+id/navigation_profile"
-        android:icon="@drawable/icon6"
-        android:title="我的" />
 
 </menu>

@@ -237,7 +237,7 @@ public class ProgressGraphView extends View {
         popupWindow.setFocusable(true);
         popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         int offsetX = (int) position.x;
-        int offsetY = (int) position.y - 50;
+        int offsetY = (int) position.y-10;
         popupWindow.showAtLocation(this, Gravity.NO_GRAVITY, offsetX, offsetY);
         postDelayed(popupWindow::dismiss, 2000);
     }

@@ -7,24 +7,39 @@
     tools:context=".progress_activity"
     android:orientation="vertical">
 
-    <Spinner
-        android:id="@+id/spinner_progress_files"
+    <LinearLayout
+        android:id="@+id/top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        />
+        android:orientation="horizontal"
+        android:background="#EEEEEE"
+        android:padding="10dp"
+        android:fitsSystemWindows="true">
+        <Spinner
+            android:id="@+id/spinner_progress_files"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:spinnerMode="dropdown"/>
+        <Button
+            android:id="@+id/delete_progress_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="删除进度"
+            android:padding="8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:textColor="#FF5722"/>
+    </LinearLayout>
 
+    <!-- Progress Graph -->
     <HorizontalScrollView
-
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
         <ScrollView
             android:layout_width="wrap_content"
-            android:layout_height="500dp">
-
+            android:layout_height="wrap_content">
             <pers.ember.myapplication.View.ProgressGraphView
                 android:id="@+id/progressGraphView"
                 android:layout_width="2000dp"
@@ -33,22 +48,30 @@
         </ScrollView>
     </HorizontalScrollView>
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:context=".MainActivity">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:background="#F5F5F5">
+        <TextView
+            android:id="@+id/graph_description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="“进度表”是一个小小的参考Minecraft进度系统的计划表软件"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:layout_marginBottom="8dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="记录自己的进度并设计自己喜欢的进度吧！（没有创造自己的进度以上为默认进度）"
+            android:textColor="#555555" />
+    </LinearLayout>
 
-        <!-- 主内容区域 -->
-        <FrameLayout
-            android:id="@+id/fragment_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_above="@id/bottom_navigation" />
-
-        <!-- 底部导航栏 -->
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_navigation"
             android:layout_width="match_parent"

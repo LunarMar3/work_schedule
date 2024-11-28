@@ -1,3 +1,4 @@
+
 plugins {
     id("com.android.application")
 }
@@ -36,6 +37,7 @@ android {
 
 dependencies {
 
+
     constraints {
         add("implementation", "org.jetbrains.kotlin:kotlin-stdlib-jdk7") {
             version {
@@ -61,5 +63,5 @@ dependencies {
     implementation ("com.github.bumptech.glide:glide:4.15.1")
     annotationProcessor ("com.github.bumptech.glide:compiler:4.15.1")
     implementation("cn.hutool:hutool-all:5.8.33")
-
+    implementation("com.github.yalantis:ucrop:2.2.8")
 }

@@ -3,44 +3,52 @@ package pers.ember.myapplication;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Bundle;
-import android.view.KeyEvent;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.gson.Gson;
+import com.yalantis.ucrop.UCrop;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
+import java.io.File;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.http.HttpResponse;
+import cn.hutool.http.HttpUtil;
+import cn.hutool.http.body.MultipartBody;
 import cn.hutool.json.JSONUtil;
 import pers.ember.myapplication.Entity.ProgressNode;
+import pers.ember.myapplication.Entity.ProgressNodeList;
 import pers.ember.myapplication.View.ProgressGraphView;
+
 
 public class design_activity extends AppCompatActivity {
     private ProgressGraphView progressGraphView;
     private EditText inputNodeId, inputNodeName, inputNodeDescription, inputNodeX, inputNodeY;
-    private Button saveNodeButton, saveProgressButton;
+    private Button saveNodeButton, saveProgressButton,uploadButton;
     private List<ProgressNode> nodeList = new ArrayList<>();
     private Spinner nodeSpinner, beforeSpinner;
     private Button deleteNodeButton;
     private View rootView;
+    private static final int PICK_IMAGE_REQUEST = 1;
     private ScrollView scrollView;
     private ArrayAdapter<String> nodeAdapter,beforeAdapter;
 
@@ -57,6 +65,7 @@ public class design_activity extends AppCompatActivity {
         inputNodeName = findViewById(R.id.input_node_name);
         inputNodeDescription = findViewById(R.id.input_node_description);
         bottomNavigationView = findViewById(R.id.bottom_navigation);
+        uploadButton = findViewById(R.id.upload_icon);
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.navigation_progress) {
@@ -82,6 +91,7 @@ public class design_activity extends AppCompatActivity {
         deleteNodeButton = findViewById(R.id.delete_node_button);
         scrollView = findViewById(R.id.node_form);
         progressGraphView.setOnTouchListener((v, event) -> true);
+        uploadButton.setOnClickListener(v -> openGallery());
         saveNodeButton.setOnClickListener(v -> saveNode());
         saveProgressButton.setOnClickListener(v -> {
             saveProgress();
@@ -157,7 +167,6 @@ public class design_activity extends AppCompatActivity {
                 return;
             }
         }
-        // 不存在则新增
         nodeList.add(node);
         refreshGraph();
         nodeAdapter.clear();
@@ -169,14 +178,12 @@ public class design_activity extends AppCompatActivity {
         Toast.makeText(this, "节点已添加！", Toast.LENGTH_SHORT).show();
     }
     private void saveProgress() {
-        // 开启一个新线程处理网络请求
         new Thread(() -> {
             try {
                 URL url = new URL("http://8.134.189.141:999/api/progress/insert");
                 String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
                         .getString("auth_token", null);
 
-                // 检查 token 是否为空
                 if (token == null) {
                     runOnUiThread(() ->
                             Toast.makeText(this, "请重新登录", Toast.LENGTH_SHORT).show());
@@ -190,13 +197,11 @@ public class design_activity extends AppCompatActivity {
                 connection.setRequestProperty("Authorization", token);
                 connection.setDoOutput(true);
 
-                // 准备请求数据
                 String progress = JSONUtil.toJsonStr(nodeList);
                 JSONObject jsonInput = new JSONObject();
                 jsonInput.put("progress", progress);
                 String jsonString = jsonInput.toString();
 
-                // 写入请求数据
                 try (OutputStream os = connection.getOutputStream()) {
                     byte[] input = jsonString.getBytes("utf-8");
                     os.write(input, 0, input.length);
@@ -204,7 +209,6 @@ public class design_activity extends AppCompatActivity {
 
                 int responseCode = connection.getResponseCode();
 
-                // 根据响应结果更新 UI
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     runOnUiThread(() ->
                             Toast.makeText(this, "进度已保存！", Toast.LENGTH_SHORT).show());
@@ -218,7 +222,7 @@ public class design_activity extends AppCompatActivity {
                 runOnUiThread(() ->
                         Toast.makeText(this, "网络错误，请稍后再试", Toast.LENGTH_SHORT).show());
             }
-        }).start(); // 启动线程
+        }).start();
     }
 
     private void refreshGraph() {
@@ -232,14 +236,13 @@ public class design_activity extends AppCompatActivity {
         return names;
     }
     private void deleteNode(ProgressNode node) {
-        // 删除节点
-        nodeList.remove(node);
 
-        // 更新 ProgressGraphView 和 Spinner
+
+        nodeList.remove(node);
+        deleteicon(node.getIcon());
         ProgressGraphView progressGraphView = findViewById(R.id.progressGraphView);
         progressGraphView.setNodes(nodeList);
 
-        // 更新 Spinner
         nodeAdapter.clear();
         nodeAdapter.addAll(getNodeNames(nodeList));
         nodeAdapter.notifyDataSetChanged();
@@ -261,4 +264,144 @@ public class design_activity extends AppCompatActivity {
         return options;
     }
 
+    private void openGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+    }
+    private void cropImage(Uri sourceUri) {
+        File destDir = new File(getExternalFilesDir(null), "cropped_images");
+        if (!destDir.exists()) {
+            destDir.mkdirs();
+        }
+
+        Uri destinationUri = Uri.fromFile(new File(destDir, IdUtil.fastUUID()+"_image.jpg"));
+
+        UCrop.of(sourceUri, destinationUri)
+                .withAspectRatio(1, 1)
+                .withMaxResultSize(128, 128)
+                .start(design_activity.this);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
+            Uri selectedImageUri = data.getData();
+            cropImage(selectedImageUri);
+        }
+
+        if (requestCode == UCrop.REQUEST_CROP && resultCode == RESULT_OK) {
+            Uri croppedImageUri = UCrop.getOutput(data);
+            saveNodeIcon(croppedImageUri);
+        } else if (resultCode == UCrop.RESULT_ERROR) {
+            Throwable cropError = UCrop.getError(data);
+            Toast.makeText(this, "裁剪失败：" + cropError.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void saveNodeIcon(Uri iconUri) {
+        File file = null;
+        if ("content".equals(iconUri.getScheme())) {
+            String[] projection = { MediaStore.Images.Media.DATA };
+            Cursor cursor = getContentResolver().query(iconUri, projection, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndex(projection[0]);
+                String filePath = cursor.getString(columnIndex);
+                file = new File(filePath);
+                cursor.close();
+            }
+        } else if ("file".equals(iconUri.getScheme())) {
+            file = new File(iconUri.getPath());
+        }
+
+        if (file != null && file.exists()) {
+            int selectedPosition = nodeSpinner.getSelectedItemPosition();
+            if (selectedPosition >= 0 && selectedPosition < nodeList.size()) {
+                nodeList.get(selectedPosition).setIcon(file.getName());
+                uploadIcons(file.getAbsolutePath());
+                Toast.makeText(this, "图标已绑定到节点！", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, "图标路径无效", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void uploadIcons(String iconPath) {
+        new Thread(() -> {
+                if (iconPath != null && !iconPath.isEmpty()) {
+                    try {
+                        File file = new File(iconPath);
+                        String url = "http://8.134.189.141:999/api/progress/icon";
+                        String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                                .getString("auth_token", null);
+
+                        if (token == null) {
+                            runOnUiThread(() ->
+                                    Toast.makeText(this, "请重新登录", Toast.LENGTH_SHORT).show()
+                            );
+                            return;
+                        }
+                        HttpResponse response = HttpUtil.createPost(url)
+                                .header("Authorization", token)
+                                .form("file", file)
+                                .execute();
+                        if (response.getStatus() == 200) {
+                            runOnUiThread(() ->
+                                    Toast.makeText(this, "图标上传成功！", Toast.LENGTH_SHORT).show()
+                            );
+                        } else {
+                            runOnUiThread(() ->
+                                    Toast.makeText(this, "上传失败，错误码：" + response.getStatus(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+        }).start();
+    }
+    private void deleteicon(String icon) {
+        new Thread(() -> {
+            if (icon != null && !icon.isEmpty()) {
+                try {
+                    URL url = new URL("http://8.134.189.141:999/api/progress/deleteIcon?icon=" + icon);
+
+                    String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                            .getString("auth_token", null);
+                    if (token == null) {
+                        runOnUiThread(() -> Toast.makeText(design_activity.this, "请重新登录", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                    connection.setRequestProperty("Accept", "application/json");
+                    connection.setRequestProperty("Authorization", token);
+
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        try (Scanner scanner = new Scanner(connection.getInputStream())) {
+                            scanner.useDelimiter("\\A");
+                            String response = scanner.hasNext() ? scanner.next() : "";
+                            JSONObject jsonResponse = new JSONObject(response);
+                            int code = jsonResponse.getInt("code");
+                            runOnUiThread(() -> {
+                                if (code == 200) {
+                                    Toast.makeText(design_activity.this, "图标删除成功！", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(design_activity.this, "图标删除失败！" , Toast.LENGTH_SHORT).show();
+                                }
+                            });
+
+                        }
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 }

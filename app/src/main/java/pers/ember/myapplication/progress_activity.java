@@ -1,23 +1,21 @@
 package pers.ember.myapplication;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -25,15 +23,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONUtil;
+import pers.ember.myapplication.Entity.ProgressNode;
 import pers.ember.myapplication.Entity.ProgressNodeList;
 import pers.ember.myapplication.View.ProgressGraphView;
-import pers.ember.myapplication.Entity.ProgressNode;
 
 public class progress_activity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
+
+    private List<ProgressNodeList> myList;
+    private Button deleteProgressButton;
     private Spinner spinner;
 
     @Override
@@ -43,6 +42,13 @@ public class progress_activity extends AppCompatActivity {
         spinner = findViewById(R.id.spinner_progress_files);
         ProgressGraphView progressGraphView = findViewById(R.id.progressGraphView);
         bottomNavigationView = findViewById(R.id.bottom_navigation);
+        deleteProgressButton = findViewById(R.id.delete_progress_button);
+        deleteProgressButton.setOnClickListener(v -> {
+            int position = spinner.getSelectedItemPosition();
+            if (position >= 0 && position < myList.size()) {
+                deleteProgress(myList.get(position).getId());
+            }
+        });
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.navigation_progress) {
@@ -128,7 +134,7 @@ public class progress_activity extends AppCompatActivity {
                 "    \"before\": \"4\",\n" +
                 "    \"x\": 1300,\n" +
                 "    \"y\": 1100,\n" +
-                "    \"icon\": \"icon6.png\"\n" +
+                "    \"icon\": \"icon7.png\"\n" +
                 "  }\n" +
                 "] ";
         Gson gson = new Gson();
@@ -137,6 +143,50 @@ public class progress_activity extends AppCompatActivity {
         GetProgress();
 
     }
+
+    private void deleteProgress(int id) {
+        new Thread(() -> {
+                try {
+                    URL url = new URL("http://8.134.189.141:999/api/progress/delete?id=" + id);
+
+                    String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                            .getString("auth_token", null);
+                    if (token == null) {
+                        runOnUiThread(() -> Toast.makeText(progress_activity.this, "请重新登录", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                    connection.setRequestProperty("Accept", "application/json");
+                    connection.setRequestProperty("Authorization", token);
+
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        try (Scanner scanner = new Scanner(connection.getInputStream())) {
+                            scanner.useDelimiter("\\A");
+                            String response = scanner.hasNext() ? scanner.next() : "";
+                            JSONObject jsonResponse = new JSONObject(response);
+                            int code = jsonResponse.getInt("code");
+                            runOnUiThread(() -> {
+                                if (code == 200) {
+                                    removeProgressFromList(id);
+                                    updateSpinner();
+                                    Toast.makeText(progress_activity.this, "进度删除成功！", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(progress_activity.this, "进度删除失败！" , Toast.LENGTH_SHORT).show();
+                                }
+                            });
+
+                        }
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+        }).start();
+    }
+
     private void GetProgress() {
         new Thread(() -> {
             try {
@@ -164,7 +214,6 @@ public class progress_activity extends AppCompatActivity {
                         final String data = jsonResponse.getString("data");
                         runOnUiThread(() -> {
                             if (code == 200) {
-                                Gson gson = new Gson();
                                 List<ProgressNodeList> progressList = parseProgressData(data);
                                 setupSpinner(progressList);
                             }
@@ -180,13 +229,11 @@ public class progress_activity extends AppCompatActivity {
     }
 
     private void setupSpinner(List<ProgressNodeList> progressList) {
-        // 创建显示在 Spinner 上的名称列表
         List<String> progressNames = new ArrayList<>();
         for (int i = 0; i < progressList.size(); i++) {
-            progressNames.add("进度文件 " + (i + 1));
+            String name = String.valueOf(i+1);
+            progressNames.add("进度文件 " + name);
         }
-
-        // 设置 Spinner 的适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_spinner_item,
@@ -214,18 +261,55 @@ public class progress_activity extends AppCompatActivity {
     private List<ProgressNodeList> parseProgressData(String data) {
         List<ProgressNodeList> progressLists = new ArrayList<>();
         try {
-            JSONArray jsonArray = JSONUtil.parseArray(data);
-            for (Object item : jsonArray) {
-                String jsonString = (String) item;
-                List<ProgressNode> progressNodes = Arrays.asList(
-                        new Gson().fromJson(jsonString, ProgressNode[].class)
-                );
-                progressLists.add(new ProgressNodeList(progressNodes));
+            org.json.JSONArray jsonArray = new org.json.JSONArray(data);
+
+            for (int i = 0; i < jsonArray.length(); i++) {
+                org.json.JSONObject jsonObject = jsonArray.getJSONObject(i);
+
+                int id = jsonObject.getInt("id");
+                String progressJson = jsonObject.getString("progress");
+
+                Gson gson = new Gson();
+                List<ProgressNode> progressNodes = Arrays.asList(gson.fromJson(progressJson, ProgressNode[].class));
+
+                ProgressNodeList progressNodeList = new ProgressNodeList();
+                progressNodeList.setId(id);
+                progressNodeList.setProgressNodes(progressNodes);
+
+                progressLists.add(progressNodeList);
             }
         } catch (Exception e) {
             e.printStackTrace();
             runOnUiThread(() -> Toast.makeText(this, "解析进度数据出错", Toast.LENGTH_SHORT).show());
         }
+        myList = progressLists;
         return progressLists;
     }
+    private void removeProgressFromList(int id) {
+        if (myList != null) {
+            for (int i = 0; i < myList.size(); i++) {
+                if (myList.get(i).getId() == id) {
+                    myList.remove(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void updateSpinner() {
+        if (myList == null || myList.isEmpty()) {
+            return; // 如果列表为空，直接返回
+        }
+
+        List<String> progressNames = new ArrayList<>();
+        for (int i = 0; i < myList.size(); i++) {
+            String name = String.valueOf(i + 1);
+            progressNames.add("进度文件 " + name);
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, progressNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+    }
+
 }
