@@ -45,6 +45,9 @@ public class ProgressGraphView extends View {
     private Map<String, Bitmap> iconCache = new HashMap<>();
     private final float nodeSize = 150f;
 
+    public List<ProgressNode> getNodes() {
+        return nodes;
+    }
     public ProgressGraphView(Context context, AttributeSet attrs) throws IOException {
         super(context, attrs);
         init();

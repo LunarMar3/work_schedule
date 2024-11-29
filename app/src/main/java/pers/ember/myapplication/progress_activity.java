@@ -16,6 +16,7 @@ import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -30,9 +31,9 @@ import pers.ember.myapplication.View.ProgressGraphView;
 public class progress_activity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
-
+    private ProgressGraphView progressGraphView;
     private List<ProgressNodeList> myList;
-    private Button deleteProgressButton;
+    private Button deleteProgressButton,updateProgressButton;
     private Spinner spinner;
 
     @Override
@@ -40,13 +41,20 @@ public class progress_activity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_progress);
         spinner = findViewById(R.id.spinner_progress_files);
-        ProgressGraphView progressGraphView = findViewById(R.id.progressGraphView);
+        progressGraphView = findViewById(R.id.progressGraphView);
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         deleteProgressButton = findViewById(R.id.delete_progress_button);
+        updateProgressButton = findViewById(R.id.update_progress_button);
         deleteProgressButton.setOnClickListener(v -> {
             int position = spinner.getSelectedItemPosition();
             if (position >= 0 && position < myList.size()) {
                 deleteProgress(myList.get(position).getId());
+            }
+        });
+        updateProgressButton.setOnClickListener(v -> {
+            int position = spinner.getSelectedItemPosition();
+            if (position >= 0 && position < myList.size()) {
+                uploadProgress(myList.get(position).getId());
             }
         });
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
@@ -312,4 +320,52 @@ public class progress_activity extends AppCompatActivity {
         spinner.setAdapter(adapter);
     }
 
+    private void uploadProgress(int id) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://8.134.189.141:999/api/progress/update");
+                String token = getSharedPreferences("MyAppPrefs", MODE_PRIVATE)
+                        .getString("auth_token", null);
+                if (token == null) {
+                    runOnUiThread(() -> Toast.makeText(progress_activity.this, "请重新登录", Toast.LENGTH_SHORT).show());
+                }
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                List<ProgressNode> progressNodes = progressGraphView.getNodes();
+                Gson gson = new Gson();
+                String progressJson = gson.toJson(progressNodes);
+                JSONObject jsonInput = new JSONObject();
+                jsonInput.put("id", id);
+                jsonInput.put("progress", progressJson);
+                String jsonString = jsonInput.toString();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Authorization", token);
+                connection.setDoOutput(true);
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = jsonString.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (Scanner scanner = new Scanner(connection.getInputStream())) {
+                        scanner.useDelimiter("\\A");
+                        String response = scanner.hasNext() ? scanner.next() : "";
+                        JSONObject jsonResponse = new JSONObject(response);
+                        int code = jsonResponse.getInt("code");
+                        runOnUiThread(() -> {
+                            if (code == 200) {
+                                Toast.makeText(progress_activity.this, "进度更新成功！", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(progress_activity.this, "进度更新失败！", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(progress_activity.this, "网络错误，请稍后重试", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
 }

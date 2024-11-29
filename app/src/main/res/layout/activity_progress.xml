@@ -22,16 +22,20 @@
             android:layout_weight="1"
             android:spinnerMode="dropdown"/>
         <Button
+            android:id="@+id/update_progress_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="更新进度"
+            android:padding="8dp"/>
+        <Button
             android:id="@+id/delete_progress_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="删除进度"
             android:padding="8dp"
-            android:background="?android:attr/selectableItemBackground"
             android:textColor="#FF5722"/>
     </LinearLayout>
 
-    <!-- Progress Graph -->
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
